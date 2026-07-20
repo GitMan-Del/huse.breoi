@@ -1,7 +1,8 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
 
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Plus, Trash2, Settings2, TagX, Check, Search } from "lucide-react";
+
 interface PhoneModel {
   id: string;
   name: string;
@@ -36,16 +37,17 @@ const DEFAULT_CATEGORIES: Category[] = [
   "Carte Normala",
   "Carte Piele",
   "360",
-  "Silicon (Neagra transparenta)",
+  "Silicon Neagra",
+  "Silicon Transparenta)",
   "Catifea",
   "Sclipici",
   "Lichid",
   "MagSafe",
   "AntiShock",
-  "Modele (sticla, silicon)",
+  "Modele Sticla",
+  "Modele Silicon",
 ].map((name) => ({ id: genId(), name }));
 
-const STORAGE_KEY = "inventar-huse-v1";
 
 interface EditableTextProps {
   value: string;
@@ -119,21 +121,23 @@ export default function PhoneCaseInventory() {
 
   // Load on mount
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const data: Partial<StoredData> = JSON.parse(raw);
-        setModels(data.models || []);
-        setCategories(data.categories && data.categories.length ? data.categories : DEFAULT_CATEGORIES);
-        setColors(data.colors || []);
-        setInventory(data.inventory || {});
-        if (data.models && data.models.length) setSelectedModelId(data.models[0].id);
+    (async () => {
+      try {
+        const res = await fetch("/api/inventory");
+        const data: Partial<StoredData> | null = await res.json();
+        if (data) {
+          setModels(data.models || []);
+          setCategories(data.categories && data.categories.length ? data.categories : DEFAULT_CATEGORIES);
+          setColors(data.colors || []);
+          setInventory(data.inventory || {});
+          if (data.models && data.models.length) setSelectedModelId(data.models[0].id);
+        }
+      } catch {
+        // request failed — defaults stand
+      } finally {
+        setLoaded(true);
       }
-    } catch {
-      // no existing data yet, or it's corrupted — defaults stand
-    } finally {
-      setLoaded(true);
-    }
+    })();
   }, []);
 
   // Debounced save
@@ -145,10 +149,14 @@ export default function PhoneCaseInventory() {
     }
     setSaveState("saving");
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
+    saveTimer.current = setTimeout(async () => {
       try {
         const payload: StoredData = { models, categories, colors, inventory };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        await fetch("/api/inventory", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
         setSaveState("saved");
         setTimeout(() => setSaveState("idle"), 1200);
       } catch {
