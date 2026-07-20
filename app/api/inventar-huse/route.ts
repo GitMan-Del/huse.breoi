@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { put, get } from "@vercel/blob";
 
-const PATHNAME = "inventar-huse.json";
+const PATHNAME = "inventar-huse-migrat.json";
 
-// GET /api/inventory — returns the saved data, or null if nothing saved yet
+// GET /api/inventar-huse-migrat — returns the saved data, or null if nothing saved yet
 export async function GET() {
   try {
     const result = await get(PATHNAME, { access: "private" });
