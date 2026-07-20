@@ -90,7 +90,7 @@ const DEFAULT_FOLII_CATEGORIES: Category[] = [
   "Sticla Normala",
   "Sticla Privacy",
   "Sticla Camera",
-  "Hidrogel Fata",
+  "Hidrogel Fata",  
   "Hidrogel Spate",
   "Mata",
 ].map((name) => ({ id: genId(), name }));
@@ -973,7 +973,7 @@ export default function InventoryPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/inventar-huse-migrat");
+        const res = await fetch("/api/inventar-huse");
         const data: Partial<StoredData> | null = await res.json();
         if (data) {
           if (data.huse) setHuse(data.huse);
@@ -1000,7 +1000,7 @@ export default function InventoryPage() {
     saveTimer.current = setTimeout(async () => {
       try {
         const payload: StoredData = { huse, folii, accesorii };
-        await fetch("/api/inventar-huse", {
+        await fetch("/api/inventar-huse-migrat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),

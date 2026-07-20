@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { put, get } from "@vercel/blob";
 
-const PATHNAME = "inventar-huse.json";
+const PATHNAME = "inventar-huse-migrat.json";
 
 // GET /api/inventar-huse — returns the saved data, or null if nothing saved yet
 export async function GET() {
