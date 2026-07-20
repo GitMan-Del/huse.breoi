@@ -55,9 +55,17 @@ interface AccessorySubcategory {
   items: AccessoryItem[];
 }
 
+// folii: doar model de telefon + cantitate + preț, fără culori/categorii
+interface FoliiItem {
+  id: string;
+  model: string;
+  qty: number;
+  price: number;
+}
+
 interface StoredData {
   huse: GridSectionData;
-  folii: GridSectionData;
+  folii: FoliiItem[];
   accesorii: AccessorySubcategory[];
 }
 
@@ -71,6 +79,8 @@ const genId = (): string =>
    DEFAULTS
    ========================================================================= */
 
+
+   
 const DEFAULT_HUSE_CATEGORIES: Category[] = [
   "Carte Normala",
   "Carte Piele",
@@ -86,15 +96,6 @@ const DEFAULT_HUSE_CATEGORIES: Category[] = [
   "Modele Silicon",
 ].map((name) => ({ id: genId(), name }));
 
-const DEFAULT_FOLII_CATEGORIES: Category[] = [
-  "Sticla Normala",
-  "Sticla Privacy",
-  "Sticla Camera",
-  "Hidrogel Fata",  
-  "Hidrogel Spate",
-  "Mata",
-].map((name) => ({ id: genId(), name }));
-
 const DEFAULT_ACCESORII: AccessorySubcategory[] = [
   "Incarcatoare Adaptor/Cablu",
   "Casti Wireless",
@@ -105,10 +106,13 @@ const DEFAULT_ACCESORII: AccessorySubcategory[] = [
   "Baterii Externe",
 ].map((name) => ({ id: genId(), name, items: [] }));
 
-const emptyGrid = (categories: Category[]): GridSectionData => ({
+const emptyGrid = (
+  categories: Category[],
+  colors: ColorCode[] = [],
+): GridSectionData => ({
   models: [],
   categories,
-  colors: [],
+  colors,
   inventory: {},
 });
 
@@ -123,6 +127,7 @@ interface EditableTextProps {
   inputClassName?: string;
   placeholder?: string;
 }
+
 
 function EditableText({
   value,
@@ -201,9 +206,15 @@ function GridSection({
   emptyModelsHint,
   emptyColorsHint,
 }: GridSectionProps) {
-  const { models, categories, colors, inventory } = data;
+  const {
+    models = [],
+    categories = [],
+    colors = [],
+    inventory = {},
+  } = data ?? {};
+
   const [selectedModelId, setSelectedModelId] = useState<string | null>(
-    models[0]?.id ?? null
+    models[0]?.id ?? null,
   );
   const [newModelName, setNewModelName] = useState("");
   const [modelSearch, setModelSearch] = useState("");
@@ -220,7 +231,13 @@ function GridSection({
   }, [models, selectedModelId]);
 
   const patch = (partial: Partial<GridSectionData>) =>
-    onChange({ ...data, ...partial });
+    onChange({
+      models,
+      categories,
+      colors,
+      inventory,
+      ...partial,
+    });
 
   const addModel = () => {
     const name = newModelName.trim();
@@ -234,7 +251,10 @@ function GridSection({
   const deleteModel = (id: string) => {
     const nextInventory = { ...inventory };
     delete nextInventory[id];
-    patch({ models: models.filter((m) => m.id !== id), inventory: nextInventory });
+    patch({
+      models: models.filter((m) => m.id !== id),
+      inventory: nextInventory,
+    });
   };
 
   const addCategory = () => {
@@ -258,7 +278,9 @@ function GridSection({
   };
 
   const renameCategory = (id: string, name: string) =>
-    patch({ categories: categories.map((c) => (c.id === id ? { ...c, name } : c)) });
+    patch({
+      categories: categories.map((c) => (c.id === id ? { ...c, name } : c)),
+    });
 
   const addColor = () => {
     const typedCode = newColorCode.trim();
@@ -281,7 +303,10 @@ function GridSection({
       }
       nextInventory[modelId] = nextCats;
     }
-    patch({ colors: colors.filter((c) => c.id !== id), inventory: nextInventory });
+    patch({
+      colors: colors.filter((c) => c.id !== id),
+      inventory: nextInventory,
+    });
   };
 
   const renameColorCode = (id: string, code: string) =>
@@ -292,10 +317,15 @@ function GridSection({
   const getQty = useCallback(
     (modelId: string, catId: string, colorId: string): number =>
       inventory?.[modelId]?.[catId]?.[colorId] ?? 0,
-    [inventory]
+    [inventory],
   );
 
-  const setQty = (modelId: string, catId: string, colorId: string, qty: number) => {
+  const setQty = (
+    modelId: string,
+    catId: string,
+    colorId: string,
+    qty: number,
+  ) => {
     const value = Math.max(0, Number.isFinite(qty) ? qty : 0);
     const byModel = { ...(inventory[modelId] || {}) };
     const byCat = { ...(byModel[catId] || {}) };
@@ -312,7 +342,7 @@ function GridSection({
     categories.reduce((sum, cat) => sum + rowTotal(modelId, cat.id), 0);
 
   const filteredModels = models.filter((m) =>
-    m.name.toLowerCase().includes(modelSearch.toLowerCase())
+    m.name.toLowerCase().includes(modelSearch.toLowerCase()),
   );
   const selectedModel = models.find((m) => m.id === selectedModelId);
 
@@ -324,7 +354,6 @@ function GridSection({
 
   return (
     <div className="relative flex flex-col sm:flex-row flex-1 min-h-0 overflow-hidden">
-     
       {/* Sidebar */}
       <div className="w-full sm:w-64 shrink-0 border-b sm:border-b-0 sm:border-r border-slate-200 bg-white flex flex-col">
         <div className="p-3 border-b border-slate-100 flex items-center justify-between sm:block">
@@ -442,8 +471,8 @@ function GridSection({
         <div className="flex-1 overflow-auto p-3 sm:p-6">
           {!selectedModel ? (
             <div className="h-full flex items-center justify-center text-sm text-slate-400 text-center px-8">
-              Adaugă sau selectează un model de telefon din stânga pentru a introduce
-              inventarul.
+              Adaugă sau selectează un model de telefon din stânga pentru a
+              introduce inventarul.
             </div>
           ) : colors.length === 0 ? (
             <div className="h-full flex items-center justify-center text-sm text-slate-400 text-center px-8">
@@ -493,11 +522,11 @@ function GridSection({
                                 selectedModel.id,
                                 cat.id,
                                 c.id,
-                                parseInt(e.target.value, 10)
+                                parseInt(e.target.value, 10),
                               )
                             }
                             className={`w-12 text-center py-1 rounded border border-transparent hover:border-slate-200 focus:border-teal-500 focus:outline-none bg-transparent font-mono ${qtyColor(
-                              qty
+                              qty,
                             )}`}
                           />
                         </td>
@@ -515,7 +544,10 @@ function GridSection({
                     Total
                   </td>
                   {colors.map((c) => (
-                    <td key={c.id} className="text-center pt-2 font-mono text-xs text-slate-500">
+                    <td
+                      key={c.id}
+                      className="text-center pt-2 font-mono text-xs text-slate-500"
+                    >
                       {colTotal(selectedModel.id, c.id)}
                     </td>
                   ))}
@@ -532,10 +564,11 @@ function GridSection({
       {/* Settings panel */}
       {settingsOpen && (
         <div className="absolute inset-0 bg-slate-900/30 flex justify-end z-10">
-          
           <div className="w-full sm:w-96 bg-white h-full shadow-xl flex flex-col">
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
-              <h3 className="text-sm font-semibold text-slate-900">Categorii &amp; culori</h3>
+              <h3 className="text-sm font-semibold text-slate-900">
+                Categorii &amp; culori
+              </h3>
               <button
                 onClick={() => setSettingsOpen(false)}
                 className="text-slate-400 hover:text-slate-700"
@@ -667,6 +700,211 @@ function GridSection({
 }
 
 /* =========================================================================
+   FOLII SECTION — model telefon + cantitate + preț (fără culori/categorii)
+   ========================================================================= */
+
+interface FoliiSectionProps {
+  data: FoliiItem[];
+  onChange: (data: FoliiItem[]) => void;
+}
+
+function FoliiSection({ data, onChange }: FoliiSectionProps) {
+  const [modelSearch, setModelSearch] = useState("");
+  const [newModel, setNewModel] = useState("");
+  const [newQty, setNewQty] = useState("");
+  const [newPrice, setNewPrice] = useState("");
+
+  const items = data ?? [];
+
+  const renameModel = (id: string, model: string) =>
+    onChange(items.map((it) => (it.id === id ? { ...it, model } : it)));
+
+  const setQty = (id: string, qty: number) => {
+    const value = Math.max(0, Number.isFinite(qty) ? qty : 0);
+    onChange(items.map((it) => (it.id === id ? { ...it, qty: value } : it)));
+  };
+
+  const setPrice = (id: string, price: number) => {
+    const value = Math.max(0, Number.isFinite(price) ? price : 0);
+    onChange(items.map((it) => (it.id === id ? { ...it, price: value } : it)));
+  };
+
+  const deleteItem = (id: string) =>
+    onChange(items.filter((it) => it.id !== id));
+
+  const addItem = () => {
+    const model = newModel.trim();
+    if (!model) return;
+    const qty = Math.max(0, parseInt(newQty, 10) || 0);
+    const price = Math.max(0, parseFloat(newPrice.replace(",", ".")) || 0);
+    const item: FoliiItem = { id: genId(), model, qty, price };
+    onChange([...items, item]);
+    setNewModel("");
+    setNewQty("");
+    setNewPrice("");
+  };
+
+  const filtered = items.filter((it) =>
+    it.model.toLowerCase().includes(modelSearch.toLowerCase()),
+  );
+
+  const totalQty = items.reduce((sum, it) => sum + it.qty, 0);
+  const totalValue = items.reduce((sum, it) => sum + it.qty * it.price, 0);
+
+  const qtyColor = (v: number): string => {
+    if (v === 0) return "text-slate-300";
+    if (v <= 2) return "text-amber-600";
+    return "text-emerald-700";
+  };
+
+  return (
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+      {/* Add bar */}
+      <div className="p-3 sm:p-4 border-b border-slate-200 bg-white flex flex-wrap gap-1.5">
+        <input
+          value={newModel}
+          onChange={(e) => setNewModel(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addItem()}
+          placeholder="ex: iPhone 15 Pro"
+          className="flex-1 min-w-[140px] text-sm px-2 py-1.5 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+        />
+        <input
+          value={newQty}
+          onChange={(e) => setNewQty(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addItem()}
+          type="number"
+          min={0}
+          placeholder="cant."
+          className="w-20 text-sm px-2 py-1.5 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono"
+        />
+        <input
+          value={newPrice}
+          onChange={(e) => setNewPrice(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addItem()}
+          type="text"
+          inputMode="decimal"
+          placeholder="preț"
+          className="w-24 text-sm px-2 py-1.5 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono"
+        />
+        <button
+          onClick={addItem}
+          className="shrink-0 bg-teal-700 text-white rounded-md px-3 hover:bg-teal-800 transition-colors flex items-center gap-1 text-sm"
+        >
+          <Plus size={16} /> Adaugă
+        </button>
+      </div>
+
+      {/* Search + totals */}
+      <div className="px-3 sm:px-4 pt-3 flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[160px] max-w-xs">
+          <Search
+            size={13}
+            className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-300"
+          />
+          <input
+            value={modelSearch}
+            onChange={(e) => setModelSearch(e.target.value)}
+            placeholder="Caută model..."
+            className="w-full text-xs pl-6 pr-2 py-1.5 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+          />
+        </div>
+        <span className="text-xs text-slate-400">
+          Total bucăți: <span className="font-mono text-slate-700">{totalQty}</span>
+        </span>
+        <span className="text-xs text-slate-400">
+          Valoare stoc:{" "}
+          <span className="font-mono text-slate-700">
+            {totalValue.toFixed(2)} lei
+          </span>
+        </span>
+      </div>
+
+      <div className="flex-1 overflow-auto p-3 sm:p-4">
+        {filtered.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-sm text-slate-400 text-center px-8">
+            {items.length === 0
+              ? "Niciun model adăugat încă. Adaugă primul mai sus."
+              : "Niciun rezultat pentru căutarea curentă."}
+          </div>
+        ) : (
+          <table className="border-collapse text-sm w-full max-w-2xl">
+            <thead>
+              <tr>
+                <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wide py-2 pr-4 border-b border-slate-200">
+                  Model telefon
+                </th>
+                <th className="text-xs font-medium text-slate-500 py-2 px-2 border-b border-slate-200 text-center w-20">
+                  Cant.
+                </th>
+                <th className="text-xs font-medium text-slate-500 py-2 px-2 border-b border-slate-200 text-center w-24">
+                  Preț
+                </th>
+                <th className="text-xs font-medium text-slate-500 py-2 pl-2 border-b border-slate-200 text-right w-24">
+                  Valoare
+                </th>
+                <th className="border-b border-slate-200 w-8" />
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((it) => (
+                <tr key={it.id} className="hover:bg-slate-100/60">
+                  <td className="py-1.5 pr-4 border-b border-slate-100">
+                    <EditableText
+                      value={it.model}
+                      onSave={(model) => renameModel(it.id, model)}
+                      className="text-slate-700"
+                      inputClassName="w-full text-sm px-1.5 py-0.5 border border-slate-200 rounded"
+                    />
+                  </td>
+                  <td className="border-b border-slate-100 px-1 py-1 text-center">
+                    <input
+                      type="number"
+                      min={0}
+                      value={it.qty === 0 ? "" : it.qty}
+                      placeholder="0"
+                      onChange={(e) =>
+                        setQty(it.id, parseInt(e.target.value, 10))
+                      }
+                      className={`w-16 text-center py-1 rounded border border-transparent hover:border-slate-200 focus:border-teal-500 focus:outline-none bg-transparent font-mono ${qtyColor(
+                        it.qty,
+                      )}`}
+                    />
+                  </td>
+                  <td className="border-b border-slate-100 px-1 py-1 text-center">
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={it.price === 0 ? "" : it.price}
+                      placeholder="0"
+                      onChange={(e) =>
+                        setPrice(it.id, parseFloat(e.target.value))
+                      }
+                      className="w-20 text-center py-1 rounded border border-transparent hover:border-slate-200 focus:border-teal-500 focus:outline-none bg-transparent font-mono text-slate-600"
+                    />
+                  </td>
+                  <td className="text-right pl-2 pr-1 py-1.5 border-b border-slate-100 font-mono text-slate-500">
+                    {(it.qty * it.price).toFixed(2)}
+                  </td>
+                  <td className="border-b border-slate-100 text-center">
+                    <button
+                      onClick={() => deleteItem(it.id)}
+                      className="text-slate-300 hover:text-rose-500"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
    ACCESSORIES SECTION — subcategorie x listă produse (nume + cantitate)
    ========================================================================= */
 
@@ -677,7 +915,7 @@ interface AccessoriesSectionProps {
 
 function AccessoriesSection({ data, onChange }: AccessoriesSectionProps) {
   const [selectedSubId, setSelectedSubId] = useState<string | null>(
-    data[0]?.id ?? null
+    data[0]?.id ?? null,
   );
   const [newSubName, setNewSubName] = useState("");
   const [newItemName, setNewItemName] = useState("");
@@ -716,7 +954,9 @@ function AccessoriesSection({ data, onChange }: AccessoriesSectionProps) {
     const qty = Math.max(0, parseInt(newItemQty, 10) || 0);
     const item: AccessoryItem = { id: genId(), name, qty };
     onChange(
-      data.map((s) => (s.id === selected.id ? { ...s, items: [...s.items, item] } : s))
+      data.map((s) =>
+        s.id === selected.id ? { ...s, items: [...s.items, item] } : s,
+      ),
     );
     setNewItemName("");
     setNewItemQty("");
@@ -727,9 +967,14 @@ function AccessoriesSection({ data, onChange }: AccessoriesSectionProps) {
     onChange(
       data.map((s) =>
         s.id === selected.id
-          ? { ...s, items: s.items.map((it) => (it.id === itemId ? { ...it, name } : it)) }
-          : s
-      )
+          ? {
+              ...s,
+              items: s.items.map((it) =>
+                it.id === itemId ? { ...it, name } : it,
+              ),
+            }
+          : s,
+      ),
     );
   };
 
@@ -739,9 +984,14 @@ function AccessoriesSection({ data, onChange }: AccessoriesSectionProps) {
     onChange(
       data.map((s) =>
         s.id === selected.id
-          ? { ...s, items: s.items.map((it) => (it.id === itemId ? { ...it, qty: value } : it)) }
-          : s
-      )
+          ? {
+              ...s,
+              items: s.items.map((it) =>
+                it.id === itemId ? { ...it, qty: value } : it,
+              ),
+            }
+          : s,
+      ),
     );
   };
 
@@ -751,8 +1001,8 @@ function AccessoriesSection({ data, onChange }: AccessoriesSectionProps) {
       data.map((s) =>
         s.id === selected.id
           ? { ...s, items: s.items.filter((it) => it.id !== itemId) }
-          : s
-      )
+          : s,
+      ),
     );
   };
 
@@ -829,8 +1079,12 @@ function AccessoriesSection({ data, onChange }: AccessoriesSectionProps) {
         </div>
 
         <div className="p-3 border-t border-slate-100 flex items-center justify-between">
-          <span className="text-xs text-slate-400 uppercase tracking-wide">Total general</span>
-          <span className="text-sm font-mono font-semibold text-slate-700">{grandTotal}</span>
+          <span className="text-xs text-slate-400 uppercase tracking-wide">
+            Total general
+          </span>
+          <span className="text-sm font-mono font-semibold text-slate-700">
+            {grandTotal}
+          </span>
         </div>
       </div>
 
@@ -842,7 +1096,9 @@ function AccessoriesSection({ data, onChange }: AccessoriesSectionProps) {
               {selected ? selected.name : "Selectează o subcategorie"}
             </h2>
             {selected && (
-              <p className="text-xs text-slate-400">Total în stoc: {subTotal(selected)} bucăți</p>
+              <p className="text-xs text-slate-400">
+                Total în stoc: {subTotal(selected)} bucăți
+              </p>
             )}
           </div>
         </div>
@@ -850,7 +1106,8 @@ function AccessoriesSection({ data, onChange }: AccessoriesSectionProps) {
         <div className="flex-1 overflow-auto p-3 sm:p-6">
           {!selected ? (
             <div className="h-full flex items-center justify-center text-sm text-slate-400 text-center px-8">
-              Adaugă sau selectează o subcategorie din stânga pentru a introduce produsele.
+              Adaugă sau selectează o subcategorie din stânga pentru a introduce
+              produsele.
             </div>
           ) : (
             <>
@@ -869,7 +1126,10 @@ function AccessoriesSection({ data, onChange }: AccessoriesSectionProps) {
                 <tbody>
                   {selected.items.length === 0 && (
                     <tr>
-                      <td colSpan={3} className="py-6 text-center text-xs text-slate-300">
+                      <td
+                        colSpan={3}
+                        className="py-6 text-center text-xs text-slate-300"
+                      >
                         Niciun produs adăugat încă în această subcategorie.
                       </td>
                     </tr>
@@ -890,9 +1150,11 @@ function AccessoriesSection({ data, onChange }: AccessoriesSectionProps) {
                           min={0}
                           value={it.qty === 0 ? "" : it.qty}
                           placeholder="0"
-                          onChange={(e) => setItemQty(it.id, parseInt(e.target.value, 10))}
+                          onChange={(e) =>
+                            setItemQty(it.id, parseInt(e.target.value, 10))
+                          }
                           className={`w-16 text-center py-1 rounded border border-transparent hover:border-slate-200 focus:border-teal-500 focus:outline-none bg-transparent font-mono ${qtyColor(
-                            it.qty
+                            it.qty,
                           )}`}
                         />
                       </td>
@@ -956,14 +1218,11 @@ export default function InventoryPage() {
   const [section, setSection] = useState<Section>("huse");
 
   const [huse, setHuse] = useState<GridSectionData>(
-    emptyGrid(DEFAULT_HUSE_CATEGORIES)
+    emptyGrid(DEFAULT_HUSE_CATEGORIES),
   );
-  const [folii, setFolii] = useState<GridSectionData>(
-    emptyGrid(DEFAULT_FOLII_CATEGORIES)
-  );
-  const [accesorii, setAccesorii] = useState<AccessorySubcategory[]>(
-    DEFAULT_ACCESORII
-  );
+  const [folii, setFolii] = useState<FoliiItem[]>([]);
+  const [accesorii, setAccesorii] =
+    useState<AccessorySubcategory[]>(DEFAULT_ACCESORII);
 
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -973,12 +1232,13 @@ export default function InventoryPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/inventar-huse");
+        const res = await fetch("/api/inventar-huse-migrat");
         const data: Partial<StoredData> | null = await res.json();
         if (data) {
           if (data.huse) setHuse(data.huse);
-          if (data.folii) setFolii(data.folii);
-          if (data.accesorii && data.accesorii.length) setAccesorii(data.accesorii);
+          if (Array.isArray(data.folii)) setFolii(data.folii);
+          if (data.accesorii && data.accesorii.length)
+            setAccesorii(data.accesorii);
         }
       } catch {
         // request failed — defaults stand
@@ -1030,7 +1290,7 @@ export default function InventoryPage() {
       <div className="flex items-center justify-between border-b border-slate-200 bg-white px-3 sm:px-4">
         <div className="flex items-center gap-1 py-2">
           {TABS.map((t) => {
-            const Icon = t.icon;  
+            const Icon = t.icon;
             const active = section === t.id;
             return (
               <button
@@ -1049,9 +1309,15 @@ export default function InventoryPage() {
           })}
         </div>
         <span className="text-xs text-slate-300 w-16 text-right">
-          {saveState === "saving" ? "se salvează…" : saveState === "saved" ? "salvat ✓" : ""}
+          {saveState === "saving"
+            ? "se salvează…"
+            : saveState === "saved"
+              ? "salvat ✓"
+              : ""}
         </span>
       </div>
+
+      
 
       {section === "huse" && (
         <GridSection
@@ -1059,18 +1325,10 @@ export default function InventoryPage() {
           onChange={setHuse}
           modelPlaceholder="ex: S22"
           emptyModelsHint="Niciun model încă. Adaugă primul model mai sus."
-          emptyColorsHint='Nu ai încă niciun cod de culoare definit. Deschide „Categorii & culori" din stânga jos ca să adaugi (ex: A, M, G, V).'
+          emptyColorsHint='Nu ai încă culoarile definite. Deschide „Categorii & culori" din stânga jos ca să adaugi (ex: A, M, G, V).'
         />
       )}
-      {section === "folii" && (
-        <GridSection
-          data={folii}
-          onChange={setFolii}
-          modelPlaceholder="ex: iPhone 15"
-          emptyModelsHint="Niciun model încă. Adaugă primul model mai sus."
-          emptyColorsHint='Nu ai încă niciun tip de folie definit. Deschide „Categorii & culori" din stânga jos ca să adaugi.'
-        />
-      )}
+      {section === "folii" && <FoliiSection data={folii} onChange={setFolii} />}
       {section === "accesorii" && (
         <AccessoriesSection data={accesorii} onChange={setAccesorii} />
       )}
