@@ -38,7 +38,7 @@ const DEFAULT_CATEGORIES: Category[] = [
   "Carte Piele",
   "360",
   "Silicon Neagra",
-  "Silicon Transparenta)",
+  "Silicon Transparenta",
   "Catifea",
   "Sclipici",
   "Lichid",
