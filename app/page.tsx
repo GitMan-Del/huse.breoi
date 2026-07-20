@@ -1000,7 +1000,7 @@ export default function InventoryPage() {
     saveTimer.current = setTimeout(async () => {
       try {
         const payload: StoredData = { huse, folii, accesorii };
-        await fetch("/api/inventar-huse-migrat", {
+        await fetch("/api/inventar-huse", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),

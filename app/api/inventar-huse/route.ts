@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { put, get } from "@vercel/blob";
 
-const PATHNAME = "inventar-huse-migrat.json";
+const PATHNAME = "inventar-huse.json";
 
-// GET /api/inventar-huse-migrat — returns the saved data, or null if nothing saved yet
+// GET /api/inventar-huse — returns the saved data, or null if nothing saved yet
 export async function GET() {
   try {
     const result = await get(PATHNAME, { access: "private" });
@@ -18,7 +18,7 @@ export async function GET() {
   }
 }
 
-// POST /api/inventory — overwrites the saved data
+// POST /api/inventar-huse — overwrites the saved data
 export async function POST(request: Request) {
   const data = await request.json();
   await put(PATHNAME, JSON.stringify(data), {
